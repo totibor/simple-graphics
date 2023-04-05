@@ -12,6 +12,12 @@ typedef struct
     size_t stride;
 } Canvas;
 
+typedef struct
+{
+    int x;
+    int y;
+} Point;
+
 /**
  * @brief Create a canvas object
  * 
@@ -250,17 +256,17 @@ void rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t color)
     // that the X and Y co-ordinates of the rectangle are at the top left.
 
     int x2 = x1 + width;
-    int y2 = y1 - height;
+    int y2 = y1 + height;
 
     // If width and/or height is negative
     // if (x1 > x2) SWAP(int, x1, x2);
     // if (y1 > y2) SWAP(int, y1, y2);
 
-    for(int i = y2; i <= y1; i++)
+    for(int y = y1; y <= y2; y++)
     {
-        for(int j = x1; j <= x2; j++)
+        for(int x = x1; x <= x2; x++)
         {
-            overwrite_pxl(canvas, j, i, color);
+            overwrite_pxl(canvas, x, y, color);
         }
     }
 }
@@ -272,9 +278,10 @@ int* create_grid(Canvas canvas, int x_count, int y_count, int margin)
     int y1 = margin;
     int y2 = canvas.height - margin;
 
-    int x_step = (x2 - x1) / x_count;
-    int y_step = (y2 - y1) / y_count;
+    double x_step = (double)(x2 - x1) / x_count;
+    double y_step = (double)(y2 - y1) / y_count;
 
+    // Multiply by 2 because each point has an X and Y coordinate.
     int* grid = malloc(sizeof(int) * (x_count + 1) * (y_count + 1) * 2);
 
     int i = 0;
@@ -297,8 +304,8 @@ void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t col
     int y1 = margin;
     int y2 = canvas.height - margin;
 
-    int x_step = (x2 - x1) / x_count;
-    int y_step = (y2 - y1) / y_count;
+    double x_step = (double)(x2 - x1) / x_count;
+    double y_step = (double)(y2 - y1) / y_count;
 
     for(int i = 0; i <= x_count; i++)
     {
