@@ -50,3 +50,14 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Generated image files
+*.png
+*.jpg
+
+# MacOS specific
+.DS_Store
+
+# Other
+program
+main.c
