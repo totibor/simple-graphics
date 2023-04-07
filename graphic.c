@@ -2,8 +2,6 @@
 
 #define SWAP(type, x, y) do { type temp = x; x = y; y = temp; } while (0)
 
-int MAX_LINE_LENGTH;
-
 typedef struct
 {
     uint32_t *pixels;
@@ -17,6 +15,19 @@ typedef struct
     int x;
     int y;
 } Point;
+
+Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t stride);
+int* create_grid(Canvas canvas, int x_count, int y_count, int margin);
+void draw_pixel(Canvas canvas, int x, int y, uint32_t color);
+void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color);
+void draw_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
+void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
+void draw_rect(Canvas canvas, int x, int y, int width, int height, uint32_t color);
+void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t color);
+void fill_canvas(Canvas canvas, uint32_t color);
+double* interpolate(int i0, int d0, int i1, int d1);
+
+int MAX_LINE_LENGTH;
 
 /**
  * @brief Create a canvas object
@@ -37,9 +48,36 @@ Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t strid
     };
 
     // TODO: Check if this is the best way to calculate the max line length.
-    MAX_LINE_LENGTH = canvas.width + canvas.height;
+    // MAX_LINE_LENGTH = canvas.width + canvas.height;
+    MAX_LINE_LENGTH = sqrt(pow(canvas.width, 2) + pow(canvas.height, 2));
 
     return canvas;
+}
+
+int* create_grid(Canvas canvas, int x_count, int y_count, int margin)
+{
+    int x1 = margin;
+    int x2 = canvas.width - margin;
+    int y1 = margin;
+    int y2 = canvas.height - margin;
+
+    double x_step = (double)(x2 - x1) / x_count;
+    double y_step = (double)(y2 - y1) / y_count;
+
+    // Multiply by 2 because each point has an X and Y coordinate.
+    int* grid = malloc(sizeof(int) * (x_count + 1) * (y_count + 1) * 2);
+
+    int i = 0;
+    for(int y = 0; y <= y_count; y++)
+    {
+        for(int x = 0; x <= x_count; x++)
+        {
+            grid[i++] = x1 + x * x_step;
+            grid[i++] = y1 + y * y_step;
+        }
+    }
+
+    return grid;
 }
 
 /**
@@ -50,47 +88,12 @@ Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t strid
  * @param y Y coordinate of the pixel.
  * @param color Color to change the pixel to.
  */
-void overwrite_pxl(Canvas canvas, int x, int y, uint32_t color)
+void draw_pixel(Canvas canvas, int x, int y, uint32_t color)
 {
     if (x >= canvas.width   || x < 0) return;   // x is outside of canvas
     if (y >= canvas.height  || y < 0) return;   // y is outside of canvas
 
     canvas.pixels[x + (y * canvas.stride)] = color;
-}
-
-/**
- * @brief Interpolate a line between two points.
- * 
- * @param i0 First point's independent variable.
- * @param d0 First point's dependent variable.
- * @param i1 Second point's independent variable.
- * @param d1 Second point's dependent variable.
- * @return double* Array of dependent variables.
- */
-double* interpolate(int i0, int d0, int i1, int d1)
-{
-    // TODO: calculate the exact line length.
-    double* values = malloc(sizeof(double) * MAX_LINE_LENGTH);
-
-    if (i0 == i1)
-    {
-        for (int i = 0; i <= i1; i++)
-        {
-            values[i] = d0;
-        }
-        return values;
-    }
-
-    // TODO: avoid type casting
-    double a = (double)(d1 - d0) / (double)(i1 - i0);
-    double d = d0;
-
-    for(int i = 0; i <= (i1 - i0); i++)
-    {
-        values[i] = d;
-        d = d + a;
-    }
-    return values;
 }
 
 /**
@@ -119,7 +122,7 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *ys = interpolate(x0, y0, x1, y1);
         for(int x = x0; x <= x1; x++)
         {
-            overwrite_pxl(canvas, x, ys[x - x0], color);
+            draw_pixel(canvas, x, ys[x - x0], color);
         }
     }
     else
@@ -136,7 +139,7 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *xs = interpolate(y0, x0, y1, x1);
         for(int y = y0; y <= y1; y++)
         {
-            overwrite_pxl(canvas, xs[y - y0], y, color);
+            draw_pixel(canvas, xs[y - y0], y, color);
         }
     }
     
@@ -154,7 +157,7 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
  * @param y2 Y coordinate of the third point.
  * @param color Color of the triangle.
  */
-void draw_wireframe_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color)
+void draw_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color)
 {
     draw_line(canvas, x0, y0, x1, y1, color);
     draw_line(canvas, x1, y1, x2, y2, color);
@@ -197,18 +200,10 @@ void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2,
     double* x12 = interpolate(y1, x1, y2, x2);
     double* x02 = interpolate(y0, x0, y2, x2);
 
+    // Concatenate x01 and x12
     double* x012 = malloc(sizeof(double) * (y2 - y0));
-    for (int i = 0; i < (y2 - y0); i++)
-    {
-        if (i < (y1 - y0))
-        {
-            x012[i] = x01[i];
-        }
-        else
-        {
-            x012[i] = x12[i - (y1 - y0)];
-        }
-    }
+    memcpy(x012, x01, sizeof(double) * (y1 - y0));
+    memcpy(x012 + (y1 - y0), x12, sizeof(double) * (y2 - y1));
 
     // Determine which is the left and right edge
     double* left_edge;
@@ -230,7 +225,7 @@ void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2,
     {
         for (int x = left_edge[y - y0]; x <= right_edge[y - y0]; x++)
         {
-            overwrite_pxl(canvas, x, y, color);
+            draw_pixel(canvas, x, y, color);
         }
     }
 
@@ -240,15 +235,7 @@ void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2,
     free(x012);
 }
 
-void fill_canvas(Canvas canvas, uint32_t color)
-{
-    for(size_t i = 0; i < canvas.width * canvas.height; i++)
-    {
-        canvas.pixels[i] = color;
-    }
-}
-
-void rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t color)
+void draw_rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t color)
 {
     // TODO: use normalised rectange.
     // Rectangles can have negative widths/heights, which means that the starting location
@@ -266,35 +253,37 @@ void rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t color)
     {
         for(int x = x1; x <= x2; x++)
         {
-            overwrite_pxl(canvas, x, y, color);
+            draw_pixel(canvas, x, y, color);
         }
     }
 }
 
-int* create_grid(Canvas canvas, int x_count, int y_count, int margin)
+void draw_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
 {
-    int x1 = margin;
-    int x2 = canvas.width - margin;
-    int y1 = margin;
-    int y2 = canvas.height - margin;
+    int x1 = 0;
+    int y1 = radius;
+    int d = 3 - 2 * radius;
 
-    double x_step = (double)(x2 - x1) / x_count;
-    double y_step = (double)(y2 - y1) / y_count;
-
-    // Multiply by 2 because each point has an X and Y coordinate.
-    int* grid = malloc(sizeof(int) * (x_count + 1) * (y_count + 1) * 2);
-
-    int i = 0;
-    for(int y = 0; y <= y_count; y++)
+    while (y1 >= x1)
     {
-        for(int x = 0; x <= x_count; x++)
-        {
-            grid[i++] = x1 + x * x_step;
-            grid[i++] = y1 + y * y_step;
-        }
-    }
+        draw_pixel(canvas, x + x1, y - y1, color);
+        draw_pixel(canvas, x + y1, y - x1, color);
+        draw_pixel(canvas, x + y1, y + x1, color);
+        draw_pixel(canvas, x + x1, y + y1, color);
+        draw_pixel(canvas, x - x1, y + y1, color);
+        draw_pixel(canvas, x - y1, y + x1, color);
+        draw_pixel(canvas, x - y1, y - x1, color);
+        draw_pixel(canvas, x - x1, y - y1, color);
 
-    return grid;
+        if (d < 0)
+            d += 4 * x1 + 6;
+        else
+        {
+            d += 4 * (x1 - y1) + 10;
+            y1--;
+        }
+        x1++;
+    }
 }
 
 void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t color)
@@ -316,6 +305,50 @@ void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t col
     {
         draw_line(canvas, x1, y1 + i * y_step, x2, y1 + i * y_step, color);
     }
+}
+
+void fill_canvas(Canvas canvas, uint32_t color)
+{
+    for(size_t i = 0; i < canvas.width * canvas.height; i++)
+    {
+        canvas.pixels[i] = color;
+    }
+}
+
+/**
+ * @brief Interpolate a line between two points.
+ * 
+ * @param i0 First point's independent variable.
+ * @param d0 First point's dependent variable.
+ * @param i1 Second point's independent variable.
+ * @param d1 Second point's dependent variable.
+ * @return double* Array of dependent variables.
+ */
+double* interpolate(int i0, int d0, int i1, int d1)
+{
+    // TODO: calculate the exact line length.
+    double* values = malloc(sizeof(double) * MAX_LINE_LENGTH);
+
+    if (i0 == i1)
+    {
+        for (int i = 0; i <= i1; i++)
+        {
+            values[i] = d0;
+        }
+        return values;
+    }
+
+    // TODO: avoid type casting
+    double a = (double)(d1 - d0) / (double)(i1 - i0);
+
+    double d = d0;
+
+    for(int i = 0; i <= (i1 - i0); i++)
+    {
+        values[i] = d;
+        d = d + a;
+    }
+    return values;
 }
 
 void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t color)
@@ -351,7 +384,7 @@ void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t col
         int P = 2 * dy - dx;
         while (x != x1)
         {
-            overwrite_pxl(canvas, x, y, color);
+            draw_pixel(canvas, x, y, color);
             x += xi;
             if(P < 0)
             {
@@ -369,7 +402,7 @@ void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t col
         int P = 2 * dx - dy;
         while(y != y1)
         {
-            overwrite_pxl(canvas, x, y, color);
+            draw_pixel(canvas, x, y, color);
             y += yi;
             if(P < 0)
             {
