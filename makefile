@@ -1,11 +1,15 @@
 CPPFLAGS = -g
-OBJECTS = main.o
+OBJECTS = main.o graphic.o
 OUTPUT = program
 
 all: $(OBJECTS)
 	cc $(OBJECTS) -o $(OUTPUT)
 
-main.o : stb_image_write.h graphic.c
+main.o : main.c
+	cc -c main.c
+
+graphic.o : graphic.c
+	cc -c graphic.c
 
 clean:
 	rm *.o $(OUTPUT)

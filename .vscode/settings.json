@@ -63,7 +63,9 @@
         "stb_image_write.h": "c",
         "graphic.h": "c",
         "_types.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "time.h": "c",
+        "bit": "c"
     },
     "lldb.displayFormat": "auto",
     "lldb.showDisassembly": "auto",

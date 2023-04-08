@@ -1,22 +1,14 @@
+#include <math.h>
 #include <stdlib.h>
+#include <string.h>
+#include "graphic.h"
 
-#define SWAP(type, x, y) do { type temp = x; x = y; y = temp; } while (0)
-
-#define PIXEL(oc, x, y) (oc).pixels[(y)*(oc).stride + (x)]
-
-#define RED_CHAN(color)   (((color)&0x000000FF)>>(8*0))
-#define GREEN_CHAN(color) (((color)&0x0000FF00)>>(8*1))
-#define BLUE_CHAN(color)  (((color)&0x00FF0000)>>(8*2))
-#define ALPHA_CHAN(color) (((color)&0xFF000000)>>(8*3))
-#define RGBA(r, g, b, a) ((((r)&0xFF)<<(8*0)) | (((g)&0xFF)<<(8*1)) | (((b)&0xFF)<<(8*2)) | (((a)&0xFF)<<(8*3)))
-
-typedef struct
-{
-    uint32_t *pixels;
-    size_t width;
-    size_t height;
-    size_t stride;
-} Canvas;
+#define SWAP(type, x, y)    do { type temp = x; x = y; y = temp; } while (0)
+#define PIXEL(oc, x, y)     (oc).pixels[(y)*(oc).stride + (x)]
+#define RED_CHAN(color)     (((color)&0x000000FF)>>(8*0))
+#define GREEN_CHAN(color)   (((color)&0x0000FF00)>>(8*1))
+#define BLUE_CHAN(color)    (((color)&0x00FF0000)>>(8*2))
+#define ALPHA_CHAN(color)   (((color)&0xFF000000)>>(8*3))
 
 typedef struct
 {
@@ -24,18 +16,7 @@ typedef struct
     int y;
 } Point;
 
-Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t stride);
-int* create_grid(Canvas canvas, int x_count, int y_count, int margin);
-void draw_pixel(Canvas canvas, int x, int y, uint32_t color);
-void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color);
-void draw_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
-void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2, int y2, uint32_t color);
-void draw_rect(Canvas canvas, int x, int y, int width, int height, uint32_t color);
-void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t color);
-void fill_canvas(Canvas canvas, uint32_t color);
-double* interpolate(int i0, int d0, int i1, int d1);
-
-int MAX_LINE_LENGTH;
+static int MAX_LINE_LENGTH;
 
 /**
  * @brief Create a canvas object
@@ -55,11 +36,45 @@ Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t strid
         .stride = stride,
     };
 
-    // TODO: Check if this is the best way to calculate the max line length.
-    // MAX_LINE_LENGTH = canvas.width + canvas.height;
+
     MAX_LINE_LENGTH = sqrt(pow(canvas.width, 2) + pow(canvas.height, 2));
 
     return canvas;
+}
+
+/**
+ * @brief Interpolate a line between two points.
+ * 
+ * @param i0 First point's independent variable.
+ * @param d0 First point's dependent variable.
+ * @param i1 Second point's independent variable.
+ * @param d1 Second point's dependent variable.
+ * @return double* Array of dependent variables.
+ */
+double* interpolate(int i0, int d0, int i1, int d1)
+{
+    // TODO: calculate the exact line length.
+    double* values = malloc(sizeof(double) * MAX_LINE_LENGTH);
+
+    if (i0 == i1)
+    {
+        for (int i = 0; i <= i1; i++)
+        {
+            values[i] = d0;
+        }
+        return values;
+    }
+
+    double a = (double)(d1 - d0) / (double)(i1 - i0);
+
+    double d = d0;
+
+    for(int i = 0; i <= (i1 - i0); i++)
+    {
+        values[i] = d;
+        d = d + a;
+    }
+    return values;
 }
 
 int* create_grid(Canvas canvas, int x_count, int y_count, int margin)
@@ -104,27 +119,23 @@ void draw_pixel(Canvas canvas, int x, int y, uint32_t color)
     canvas.pixels[x + (y * canvas.stride)] = color;
 }
 
-void blend_pixel_color(uint32_t *color1, uint32_t color2)
+void blend_pixel(uint32_t *dest, uint32_t src)
 {
-    uint32_t r1 = RED_CHAN(*color1);
-    uint32_t g1 = GREEN_CHAN(*color1);
-    uint32_t b1 = BLUE_CHAN(*color1);
-    uint32_t a1 = ALPHA_CHAN(*color1);
+    uint32_t r1 = RED_CHAN(*dest);
+    uint32_t g1 = GREEN_CHAN(*dest);
+    uint32_t b1 = BLUE_CHAN(*dest);
+    uint32_t a1 = ALPHA_CHAN(*dest);
 
-    uint32_t r2 = RED_CHAN(color2);
-    uint32_t g2 = GREEN_CHAN(color2);
-    uint32_t b2 = BLUE_CHAN(color2);
-    uint32_t a2 = ALPHA_CHAN(color2);
+    uint32_t r2 = RED_CHAN(src);
+    uint32_t g2 = GREEN_CHAN(src);
+    uint32_t b2 = BLUE_CHAN(src);
+    uint32_t a2 = ALPHA_CHAN(src);
+    
+    r1 = (r1 * (255 - a2) + r2 * a2)/255; if (r1 > 255) r1 = 255;
+    g1 = (g1 * (255 - a2) + g2 * a2)/255; if (g1 > 255) g1 = 255;
+    b1 = (b1 * (255 - a2) + b2 * a2)/255; if (b1 > 255) b1 = 255;
 
-    r1 = (r1*(255 - a2) + r2*a2)/255; if (r1 > 255) r1 = 255;
-    g1 = (g1*(255 - a2) + g2*a2)/255; if (g1 > 255) g1 = 255;
-    b1 = (b1*(255 - a2) + b2*a2)/255; if (b1 > 255) b1 = 255;
-
-    // r1 = ((a1 * r1) + (255 - a2) * r2); if (r1 > 255) r1 = 255;
-    // g1 = ((a1 * g1) + (255 - a2) * g2); if (g1 > 255) g1 = 255;
-    // b1 = ((a1 * b1) + (255 - a2) * b2); if (b1 > 255) b1 = 255;
-
-    *color1 = RGBA(r1, g1, b1, a1);
+    *dest = RGBA(r1, g1, b1, a1);
 }
 
 /**
@@ -284,7 +295,7 @@ void draw_rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t co
     {
         for(int x = x1; x <= x2; x++)
         {
-            blend_pixel_color(&PIXEL(canvas, x, y), color);
+            blend_pixel(&PIXEL(canvas, x, y), color);
         }
     }
 }
@@ -368,42 +379,6 @@ void fill_canvas(Canvas canvas, uint32_t color)
     {
         canvas.pixels[i] = color;
     }
-}
-
-/**
- * @brief Interpolate a line between two points.
- * 
- * @param i0 First point's independent variable.
- * @param d0 First point's dependent variable.
- * @param i1 Second point's independent variable.
- * @param d1 Second point's dependent variable.
- * @return double* Array of dependent variables.
- */
-double* interpolate(int i0, int d0, int i1, int d1)
-{
-    // TODO: calculate the exact line length.
-    double* values = malloc(sizeof(double) * MAX_LINE_LENGTH);
-
-    if (i0 == i1)
-    {
-        for (int i = 0; i <= i1; i++)
-        {
-            values[i] = d0;
-        }
-        return values;
-    }
-
-    // TODO: avoid type casting
-    double a = (double)(d1 - d0) / (double)(i1 - i0);
-
-    double d = d0;
-
-    for(int i = 0; i <= (i1 - i0); i++)
-    {
-        values[i] = d;
-        d = d + a;
-    }
-    return values;
 }
 
 void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t color)
