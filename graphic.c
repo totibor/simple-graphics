@@ -2,6 +2,14 @@
 
 #define SWAP(type, x, y) do { type temp = x; x = y; y = temp; } while (0)
 
+#define PIXEL(oc, x, y) (oc).pixels[(y)*(oc).stride + (x)]
+
+#define RED_CHAN(color)   (((color)&0x000000FF)>>(8*0))
+#define GREEN_CHAN(color) (((color)&0x0000FF00)>>(8*1))
+#define BLUE_CHAN(color)  (((color)&0x00FF0000)>>(8*2))
+#define ALPHA_CHAN(color) (((color)&0xFF000000)>>(8*3))
+#define RGBA(r, g, b, a) ((((r)&0xFF)<<(8*0)) | (((g)&0xFF)<<(8*1)) | (((b)&0xFF)<<(8*2)) | (((a)&0xFF)<<(8*3)))
+
 typedef struct
 {
     uint32_t *pixels;
@@ -94,6 +102,29 @@ void draw_pixel(Canvas canvas, int x, int y, uint32_t color)
     if (y >= canvas.height  || y < 0) return;   // y is outside of canvas
 
     canvas.pixels[x + (y * canvas.stride)] = color;
+}
+
+void blend_pixel_color(uint32_t *color1, uint32_t color2)
+{
+    uint32_t r1 = RED_CHAN(*color1);
+    uint32_t g1 = GREEN_CHAN(*color1);
+    uint32_t b1 = BLUE_CHAN(*color1);
+    uint32_t a1 = ALPHA_CHAN(*color1);
+
+    uint32_t r2 = RED_CHAN(color2);
+    uint32_t g2 = GREEN_CHAN(color2);
+    uint32_t b2 = BLUE_CHAN(color2);
+    uint32_t a2 = ALPHA_CHAN(color2);
+
+    r1 = (r1*(255 - a2) + r2*a2)/255; if (r1 > 255) r1 = 255;
+    g1 = (g1*(255 - a2) + g2*a2)/255; if (g1 > 255) g1 = 255;
+    b1 = (b1*(255 - a2) + b2*a2)/255; if (b1 > 255) b1 = 255;
+
+    // r1 = ((a1 * r1) + (255 - a2) * r2); if (r1 > 255) r1 = 255;
+    // g1 = ((a1 * g1) + (255 - a2) * g2); if (g1 > 255) g1 = 255;
+    // b1 = ((a1 * b1) + (255 - a2) * b2); if (b1 > 255) b1 = 255;
+
+    *color1 = RGBA(r1, g1, b1, a1);
 }
 
 /**
@@ -253,7 +284,7 @@ void draw_rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t co
     {
         for(int x = x1; x <= x2; x++)
         {
-            draw_pixel(canvas, x, y, color);
+            blend_pixel_color(&PIXEL(canvas, x, y), color);
         }
     }
 }
@@ -274,6 +305,30 @@ void draw_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
         draw_pixel(canvas, x - y1, y + x1, color);
         draw_pixel(canvas, x - y1, y - x1, color);
         draw_pixel(canvas, x - x1, y - y1, color);
+
+        if (d < 0)
+            d += 4 * x1 + 6;
+        else
+        {
+            d += 4 * (x1 - y1) + 10;
+            y1--;
+        }
+        x1++;
+    }
+}
+
+void draw_filled_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
+{
+    int x1 = 0;
+    int y1 = radius;
+    int d = 3 - 2 * radius;
+
+    while (y1 >= x1)
+    {
+        draw_line(canvas, x - x1, y - y1, x + x1, y - y1, color);
+        draw_line(canvas, x - y1, y - x1, x + y1, y - x1, color);
+        draw_line(canvas, x - y1, y + x1, x + y1, y + x1, color);
+        draw_line(canvas, x - x1, y + y1, x + x1, y + y1, color);
 
         if (d < 0)
             d += 4 * x1 + 6;
