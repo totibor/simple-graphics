@@ -1,4 +1,4 @@
-CPPFLAGS = -g
+CFLAGS = -g
 OBJECTS = main.o graphic.o
 OUTPUT = program
 
@@ -6,10 +6,10 @@ all: $(OBJECTS)
 	cc $(OBJECTS) -o $(OUTPUT)
 
 main.o : main.c
-	cc -c main.c
+	cc -c main.c $(CFLAGS)
 
 graphic.o : graphic.c
-	cc -c graphic.c
+	cc -c graphic.c $(CFLAGS)
 
 clean:
 	rm *.o $(OUTPUT)

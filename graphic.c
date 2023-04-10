@@ -4,7 +4,6 @@
 #include "graphic.h"
 
 #define SWAP(type, x, y)    do { type temp = x; x = y; y = temp; } while (0)
-#define PIXEL(oc, x, y)     (oc).pixels[(y)*(oc).stride + (x)]
 #define RED_CHAN(color)     (((color)&0x000000FF)>>(8*0))
 #define GREEN_CHAN(color)   (((color)&0x0000FF00)>>(8*1))
 #define BLUE_CHAN(color)    (((color)&0x00FF0000)>>(8*2))
@@ -164,7 +163,9 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *ys = interpolate(x0, y0, x1, y1);
         for(int x = x0; x <= x1; x++)
         {
-            draw_pixel(canvas, x, ys[x - x0], color);
+            // draw_pixel(canvas, x, ys[x - x0], color);
+            int y = ys[x - x0];
+            blend_pixel(&PIXEL(canvas, x, y), color);
         }
     }
     else
@@ -181,7 +182,9 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *xs = interpolate(y0, x0, y1, x1);
         for(int y = y0; y <= y1; y++)
         {
-            draw_pixel(canvas, xs[y - y0], y, color);
+            // draw_pixel(canvas, xs[y - y0], y, color);
+            int x = xs[y - y0];
+            blend_pixel(&PIXEL(canvas, x, y), color);
         }
     }
     
@@ -267,7 +270,8 @@ void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2,
     {
         for (int x = left_edge[y - y0]; x <= right_edge[y - y0]; x++)
         {
-            draw_pixel(canvas, x, y, color);
+            // draw_pixel(canvas, x, y, color);
+            blend_pixel(&PIXEL(canvas, x, y), color);
         }
     }
 
@@ -300,33 +304,63 @@ void draw_rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t co
     }
 }
 
-void draw_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
-{
-    int x1 = 0;
-    int y1 = radius;
+void plot_points(Canvas canvas, int x0, int y0, int x, int y, uint32_t color) {
+    blend_pixel(&PIXEL(canvas, x0 + x, y0 + y), color);
+    blend_pixel(&PIXEL(canvas, x0 - x, y0 + y), color);
+    blend_pixel(&PIXEL(canvas, x0 + x, y0 - y), color);
+    blend_pixel(&PIXEL(canvas, x0 - x, y0 - y), color);
+    blend_pixel(&PIXEL(canvas, x0 + y, y0 + x), color);
+    blend_pixel(&PIXEL(canvas, x0 - y, y0 + x), color);
+    blend_pixel(&PIXEL(canvas, x0 + y, y0 - x), color);
+    blend_pixel(&PIXEL(canvas, x0 - y, y0 - x), color);
+}
+
+void draw_circle(Canvas canvas, int x0, int y0, int radius, uint32_t color) {
+    int x = 0;
+    int y = radius;
     int d = 3 - 2 * radius;
 
-    while (y1 >= x1)
-    {
-        draw_pixel(canvas, x + x1, y - y1, color);
-        draw_pixel(canvas, x + y1, y - x1, color);
-        draw_pixel(canvas, x + y1, y + x1, color);
-        draw_pixel(canvas, x + x1, y + y1, color);
-        draw_pixel(canvas, x - x1, y + y1, color);
-        draw_pixel(canvas, x - y1, y + x1, color);
-        draw_pixel(canvas, x - y1, y - x1, color);
-        draw_pixel(canvas, x - x1, y - y1, color);
-
-        if (d < 0)
-            d += 4 * x1 + 6;
-        else
-        {
-            d += 4 * (x1 - y1) + 10;
-            y1--;
+    while (x <= y) {
+        plot_points(canvas, x0, y0, x, y, color);
+        if (d < 0) {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y--;
         }
-        x1++;
+        x++;
     }
 }
+
+void add_grain(Canvas canvas, int amount)
+{
+    for(int x = 0; x < canvas.width; x++)
+    {
+        for(int y = 0; y < canvas.height; y++)
+        {
+            uint32_t r1 = RED_CHAN(PIXEL(canvas, x, y));
+            uint32_t g1 = GREEN_CHAN(PIXEL(canvas, x, y));
+            uint32_t b1 = BLUE_CHAN(PIXEL(canvas, x, y));
+            uint32_t a1 = ALPHA_CHAN(PIXEL(canvas, x, y));
+
+            int grain = rand() % amount;
+            int sign = rand() % 2;
+
+            if (sign == 0)
+            {
+                grain = -grain;
+            }
+
+            int r2 = r1 + grain; if (r2 > 255) r2 = 255; if(r2 < 0) r2 = 0;
+            int g2 = g1 + grain; if (g2 > 255) g2 = 255; if(g2 < 0) g2 = 0;
+            int b2 = b1 + grain; if (b2 > 255) b2 = 255; if(b2 < 0) b2 = 0;
+
+            PIXEL(canvas, x, y) = RGBA(r2, g2, b2, a1);
+
+        }
+    }
+}
+
 
 void draw_filled_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
 {
