@@ -120,6 +120,10 @@ void draw_pixel(Canvas canvas, int x, int y, uint32_t color)
 
 void blend_pixel(uint32_t *dest, uint32_t src)
 {
+    // TODO: If *dest is transparent, don't blend.
+    // TODO: If src is transparent, don't blend.
+    // TODO: Check if x and y is actually inside the canvas before using PIXEL macro. If x or y is outside the canvas
+    // then we try to access memory outside of canvas.pixels boundaries.
     uint32_t r1 = RED_CHAN(*dest);
     uint32_t g1 = GREEN_CHAN(*dest);
     uint32_t b1 = BLUE_CHAN(*dest);
