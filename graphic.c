@@ -115,27 +115,30 @@ int* create_grid(Canvas canvas, int x_count, int y_count, int margin)
  */
 void draw_pixel(Canvas canvas, int x, int y, uint32_t color)
 {
-    if (x >= canvas.width   || x < 0) return;   // x is outside of canvas
-    if (y >= canvas.height  || y < 0) return;   // y is outside of canvas
+    if (x > canvas.width   || x < 0) return;   // x is outside of canvas
+    if (y > canvas.height  || y < 0) return;   // y is outside of canvas
 
     canvas.pixels[x + (y * canvas.stride)] = color;
 }
 
-void blend_pixel(uint32_t *dest, uint32_t src)
+void blend_pixel(Canvas canvas, int x, int y, uint32_t src)
 {
-    // TODO: If *dest is transparent, don't blend.
-    // TODO: If src is transparent, don't blend.
-    // TODO: Check if x and y is actually inside the canvas before using PIXEL macro. If x or y is outside the canvas
-    // then we try to access memory outside of canvas.pixels boundaries.
-    uint32_t r1 = RED_CHAN(*dest);
-    uint32_t g1 = GREEN_CHAN(*dest);
-    uint32_t b1 = BLUE_CHAN(*dest);
-    uint32_t a1 = ALPHA_CHAN(*dest);
+    if (x > canvas.width   || x < 0) return;   // x is outside of canvas
+    if (y > canvas.height  || y < 0) return;   // y is outside of canvas
 
+    uint32_t *dest = &PIXEL(canvas, x, y);
+
+    // TODO: If src is transparent, don't blend.
+    uint32_t a2 = ALPHA_CHAN(src); if (a2 == 0) return; // src is fully transparent, nothing to blend
     uint32_t r2 = RED_CHAN(src);
     uint32_t g2 = GREEN_CHAN(src);
     uint32_t b2 = BLUE_CHAN(src);
-    uint32_t a2 = ALPHA_CHAN(src);
+
+    uint32_t a1 = ALPHA_CHAN(*dest);
+    uint32_t r1 = RED_CHAN(*dest);
+    uint32_t g1 = GREEN_CHAN(*dest);
+    uint32_t b1 = BLUE_CHAN(*dest);
+
     
     r1 = (r1 * (255 - a2) + r2 * a2)/255; if (r1 > 255) r1 = 255;
     g1 = (g1 * (255 - a2) + g2 * a2)/255; if (g1 > 255) g1 = 255;
@@ -156,9 +159,9 @@ void blend_pixel(uint32_t *dest, uint32_t src)
  */
 void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
 {
+    // Line is horizontal-ish
     if(abs(x1 - x0) > abs(y1 - y0))
     {
-        // Line is horizontal-ish
         if (x0 > x1)
         {
             SWAP(int, x0, x1);
@@ -170,14 +173,13 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *ys = interpolate(x0, y0, x1, y1);
         for(int x = x0; x <= x1; x++)
         {
-            // draw_pixel(canvas, x, ys[x - x0], color);
             int y = ys[x - x0];
-            blend_pixel(&PIXEL(canvas, x, y), color);
+            blend_pixel(canvas, x, y, color);
         }
     }
+    // Line is vertical-ish
     else
     {
-        // Line is vertical-ish
         if(y0 > y1)
         {
             SWAP(int, x0, x1);
@@ -189,9 +191,8 @@ void draw_line(Canvas canvas, int x0, int y0, int x1, int y1, uint32_t color)
         double *xs = interpolate(y0, x0, y1, x1);
         for(int y = y0; y <= y1; y++)
         {
-            // draw_pixel(canvas, xs[y - y0], y, color);
             int x = xs[y - y0];
-            blend_pixel(&PIXEL(canvas, x, y), color);
+            blend_pixel(canvas, x, y, color);
         }
     }
     
@@ -278,7 +279,7 @@ void draw_filled_triangle(Canvas canvas, int x0, int y0, int x1, int y1, int x2,
         for (int x = left_edge[y - y0]; x <= right_edge[y - y0]; x++)
         {
             // draw_pixel(canvas, x, y, color);
-            blend_pixel(&PIXEL(canvas, x, y), color);
+            blend_pixel(canvas, x, y, color);
         }
     }
 
@@ -306,20 +307,20 @@ void draw_rect(Canvas canvas, int x1, int y1, int width, int height, uint32_t co
     {
         for(int x = x1; x <= x2; x++)
         {
-            blend_pixel(&PIXEL(canvas, x, y), color);
+            blend_pixel(canvas, x, y, color);
         }
     }
 }
 
 void plot_points(Canvas canvas, int x0, int y0, int x, int y, uint32_t color) {
-    blend_pixel(&PIXEL(canvas, x0 + x, y0 + y), color);
-    blend_pixel(&PIXEL(canvas, x0 - x, y0 + y), color);
-    blend_pixel(&PIXEL(canvas, x0 + x, y0 - y), color);
-    blend_pixel(&PIXEL(canvas, x0 - x, y0 - y), color);
-    blend_pixel(&PIXEL(canvas, x0 + y, y0 + x), color);
-    blend_pixel(&PIXEL(canvas, x0 - y, y0 + x), color);
-    blend_pixel(&PIXEL(canvas, x0 + y, y0 - x), color);
-    blend_pixel(&PIXEL(canvas, x0 - y, y0 - x), color);
+    blend_pixel(canvas, x0 + x, y0 + y, color);
+    blend_pixel(canvas, x0 - x, y0 + y, color);
+    blend_pixel(canvas, x0 + x, y0 - y, color);
+    blend_pixel(canvas, x0 - x, y0 - y, color);
+    blend_pixel(canvas, x0 + y, y0 + x, color);
+    blend_pixel(canvas, x0 - y, y0 + x, color);
+    blend_pixel(canvas, x0 + y, y0 - x, color);
+    blend_pixel(canvas, x0 - y, y0 - x, color);
 }
 
 void draw_circle(Canvas canvas, int x0, int y0, int radius, uint32_t color) {
@@ -445,7 +446,7 @@ void insert_image(Canvas canvas, char *image, int x, int y)
             uint32_t b = data[index + 2];
             uint32_t a = data[index + 3];
 
-            blend_pixel(&PIXEL(canvas, x + j, y + i), RGBA(r, g, b, a));
+            blend_pixel(canvas, x + j, y + i, RGBA(r, g, b, a));
         }
     }
 
