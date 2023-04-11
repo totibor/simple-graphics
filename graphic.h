@@ -24,6 +24,7 @@ void draw_filled_circle(Canvas canvas, int x, int y, int radius, uint32_t color)
 void draw_grid(Canvas canvas, int x_count, int y_count, int margin, uint32_t color);
 void fill_canvas(Canvas canvas, uint32_t color);
 void add_grain(Canvas canvas, int grain);
+void insert_image(Canvas canvas, char *image, int x, int y);
 void blend_pixel(uint32_t *dest, uint32_t src);
 
 #endif /* _TT_GRAPHIC_H_ */

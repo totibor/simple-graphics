@@ -3,6 +3,9 @@
 #include <string.h>
 #include "graphic.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define SWAP(type, x, y)    do { type temp = x; x = y; y = temp; } while (0)
 #define RED_CHAN(color)     (((color)&0x000000FF)>>(8*0))
 #define GREEN_CHAN(color)   (((color)&0x0000FF00)>>(8*1))
@@ -417,6 +420,37 @@ void fill_canvas(Canvas canvas, uint32_t color)
     {
         canvas.pixels[i] = color;
     }
+}
+
+void insert_image(Canvas canvas, char *image, int x, int y)
+{
+    // Read image from file to memory.
+    int image_x, image_y, image_channels;
+    unsigned char *data = stbi_load(image, &image_x, &image_y, &image_channels, 4);
+
+    if(data == NULL)
+    {
+        printf("Error: Could not load image '%s'.\n", image);
+        return;
+    }
+
+    // Copy image pixel channel values to canvas.
+    for(int i = 0; i < image_y; i++)
+    {
+        for(int j = 0; j < image_x; j++)
+        {
+            int index = (i * image_x + j) * 4;
+            uint32_t r = data[index + 0];
+            uint32_t g = data[index + 1];
+            uint32_t b = data[index + 2];
+            uint32_t a = data[index + 3];
+
+            blend_pixel(&PIXEL(canvas, x + j, y + i), RGBA(r, g, b, a));
+        }
+    }
+
+    // Free image data.
+    stbi_image_free(data);
 }
 
 void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t color)
