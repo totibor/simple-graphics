@@ -65,7 +65,9 @@
         "_types.h": "c",
         "stdlib.h": "c",
         "time.h": "c",
-        "bit": "c"
+        "bit": "c",
+        "string.h": "c",
+        "stb_image.h": "c"
     },
     "lldb.displayFormat": "auto",
     "lldb.showDisassembly": "auto",

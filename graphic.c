@@ -3,6 +3,9 @@
 #include <string.h>
 #include "graphic.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -454,6 +457,15 @@ void insert_image(Canvas canvas, char *image, int x, int y)
     stbi_image_free(data);
 }
 
+void save_canvas(Canvas canvas, const char *filename)
+{
+    if (!stbi_write_png(filename, canvas.width, canvas.height, 4, canvas.pixels, sizeof(uint32_t) * canvas.width))
+    {
+        fprintf(stderr, "ERROR: could not write %s\n", filename);
+    }
+}
+
+// TODO: Use Bresenham's line algorithm in the actual draw_line function.
 void bresenham_line(Canvas canvas, int x0, int y0, int x1, int y1, u_int32_t color)
 {
     if (x0 > x1 || y0 > y1)
