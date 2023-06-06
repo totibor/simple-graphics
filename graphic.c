@@ -1,3 +1,11 @@
+/**
+ * @file graphic.c
+ * @brief  
+ * 
+ * USAGE: @todo
+ * 
+ */
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,13 +32,14 @@ typedef struct
 static int MAX_LINE_LENGTH;
 
 /**
- * @brief Create a canvas object
+ * @brief Creates a canvas with the given width, height, and pixel data array,
+ * and returns a Canvas struct that represents the created canvas.
  * 
- * @param pixels Pointer to the pixel array.
+ * @param pixels Pointer to an array of 32-bit integers representing the pixel data of the canvas.
  * @param width Width of the canvas in pixels.
  * @param height Height of the canvas in pixels.
- * @param stride Number of pixels between each row.
- * @return Canvas object.
+ * @param stride The number of bytes per row in the pixel data array.
+ * @return Canvas struct that represents the created canvas.
  */
 Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t stride)
 {
@@ -41,26 +50,28 @@ Canvas create_canvas(uint32_t *pixels, size_t width, size_t height, size_t strid
         .stride = stride,
     };
 
-
+    // Calculates the maximum length of a line that can be drawn on the canvas.
     MAX_LINE_LENGTH = sqrt(pow(canvas.width, 2) + pow(canvas.height, 2));
 
     return canvas;
 }
 
 /**
- * @brief Interpolate a line between two points.
+ * @brief Calculates an interpolation between two points.
  * 
  * @param i0 First point's independent variable.
  * @param d0 First point's dependent variable.
  * @param i1 Second point's independent variable.
  * @param d1 Second point's dependent variable.
- * @return double* Array of dependent variables.
+ * @return A dynamically allocated array of doubles representing the interpolated
+ * values of the function along the line segment.
  */
 double* interpolate(int i0, int d0, int i1, int d1)
 {
-    // TODO: calculate the exact line length.
+    // @todo: calculate the exact line length.
     double* values = malloc(sizeof(double) * MAX_LINE_LENGTH);
 
+    // If the line is vertical or horizontal, the dependent variable is constant.
     if (i0 == i1)
     {
         for (int i = 0; i <= i1; i++)
@@ -70,10 +81,12 @@ double* interpolate(int i0, int d0, int i1, int d1)
         return values;
     }
 
+    // Calculate the slope of the line.
     double a = (double)(d1 - d0) / (double)(i1 - i0);
 
     double d = d0;
 
+    // Calculate the dependent variable for each point along the line.
     for(int i = 0; i <= (i1 - i0); i++)
     {
         values[i] = d;
